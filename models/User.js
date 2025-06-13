@@ -23,9 +23,13 @@ const UserSchmena = new mongoose.Schema(
         password: {
             type: String,
             require: true
+        },
+        wallet: {
+            type: Number,
+            default: 0
         }
-    }
-)
+    }, { timestamps: true }
+);
 module.exports = mongoose.model(
     "User", UserSchmena
 )
