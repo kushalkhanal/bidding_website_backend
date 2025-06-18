@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const User = require("../models/User");
+const User = require("../models/userModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken")
 
@@ -27,7 +27,6 @@ exports.registerUser = async (req, res) => {
             });
         }
 
-        // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Create and save the user

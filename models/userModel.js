@@ -24,6 +24,11 @@ const UserSchmena = new mongoose.Schema(
             type: String,
             require: true
         },
+        role: {
+            type: String,
+            enum: [user, admin],
+            default: user,
+        },
         wallet: {
             type: Number,
             default: 0
