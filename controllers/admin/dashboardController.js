@@ -1,7 +1,7 @@
-// File: backend/controllers/admin/dashboard.controller.js
 
-const User = require('../../models/user.model');
-const BiddingRoom = require('../../models/biddingRoom.model');
+
+const User = require('../../models/userModel');
+const BiddingRoom = require('../../models/biddingRoomModel');
 
 exports.getDashboardStats = async (req, res) => {
     try {

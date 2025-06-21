@@ -1,7 +1,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { getAllBiddingRooms, deleteBiddingRoomById } = require('../../controllers/admin/biddingRoomManagement.controller');
+const { getAllBiddingRooms, deleteBiddingRoomById } = require('../../controllers/admin/biddingRoomManagement');
 
 // GET /api/admin/bidding-rooms
 router.get('/', getAllBiddingRooms);

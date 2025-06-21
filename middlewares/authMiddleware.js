@@ -1,9 +1,6 @@
-// File: backend/middlewares/auth.middleware.js
-
 const jwt = require('jsonwebtoken');
-const User = require('../models/user.model');
+const User = require('../models/userModel');
 
-// Middleware to verify the JWT and attach the user to the request object
 const protect = async (req, res, next) => {
     let token;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
@@ -22,7 +19,6 @@ const protect = async (req, res, next) => {
     }
 };
 
-// Middleware to check if the user has an 'admin' role. This MUST run AFTER protect.
 const isAdmin = (req, res, next) => {
     if (req.user && req.user.role === 'admin') {
         next();

@@ -1,6 +1,6 @@
-// File: backend/controllers/admin/biddingRoomManagement.controller.js
 
-const BiddingRoom = require('../../models/biddingRoom.model');
+
+const BiddingRoom = require('../../models/biddingRoomModel');
 
 // @desc    Get all bidding rooms for the admin panel
 exports.getAllBiddingRooms = async (req, res) => {

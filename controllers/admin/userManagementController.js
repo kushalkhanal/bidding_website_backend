@@ -1,6 +1,6 @@
-// File: backend/controllers/admin/userManagement.controller.js
 
-const User = require('../../models/user.model');
+
+const User = require('../../models/userModel');
 
 // @desc    Get all users for the admin panel
 exports.getAllUsers = async (req, res) => {
