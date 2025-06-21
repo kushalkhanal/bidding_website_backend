@@ -1,40 +1,25 @@
+// File: backend/models/user.model.js
+
 const mongoose = require("mongoose");
-const UserSchmena = new mongoose.Schema(
+
+const UserSchema = new mongoose.Schema(
     {
-        username: {
-            type: String,
-            require: true,
-            unique: true
-        },
-        email:
-        {
-            type: String,
-            require: true,
-            unique: true
-        },
-        firstName: {
-            type: String,
-
-        },
-        lastName: {
-            type: String,
-
-        },
-        password: {
-            type: String,
-            require: true
-        },
+        username: { type: String, required: true, unique: true },
+        email: { type: String, required: true, unique: true },
+        firstName: { type: String, required: true },
+        lastName: { type: String, required: true },
+        password: { type: String, required: true },
+        
+        // --- SPRINT 2 ADDITION ---
         role: {
             type: String,
-            enum: [user, admin],
-            default: user,
+            enum: ['user', 'admin'], // Role can only be 'user' or 'admin'
+            default: 'user'         // New users are automatically assigned the 'user' role
         },
-        wallet: {
-            type: Number,
-            default: 0
-        }
-    }, { timestamps: true }
+
+        wallet: { type: Number, default: 0 }
+    }, 
+    { timestamps: true }
 );
-module.exports = mongoose.model(
-    "User", UserSchmena
-)
+
+module.exports = mongoose.model("User", UserSchema);
