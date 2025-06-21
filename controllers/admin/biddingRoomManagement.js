@@ -47,10 +47,17 @@ exports.updateBiddingRoomById = async (req, res) => {
             return res.status(404).json({ message: "Bidding room not found" });
         }
         
-        // Update fields if they are provided in the request body
         room.name = req.body.name || room.name;
         room.description = req.body.description || room.description;
         room.endTime = req.body.endTime || room.endTime;
+
+       
+        if (typeof req.body.startingPrice === 'number') {
+            room.startingPrice = req.body.startingPrice;
+        }
+        if (typeof req.body.currentPrice === 'number') {
+            room.currentPrice = req.body.currentPrice;
+        }
 
         const updatedRoom = await room.save();
         res.status(200).json(updatedRoom);
