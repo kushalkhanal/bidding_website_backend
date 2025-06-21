@@ -1,12 +1,29 @@
 
+
 const express = require('express');
 const router = express.Router();
-const { getAllBiddingRooms, deleteBiddingRoomById } = require('../../controllers/admin/biddingRoomManagement');
 
-// GET /api/admin/bidding-rooms
+
+const {
+    getAllBiddingRooms,
+    deleteBiddingRoomById,
+    createBiddingRoom,
+    updateBiddingRoomById
+} = require('../../controllers/admin/biddingRoomManagement.js');
+
+
+// Base Route: /api/admin/bidding-rooms
+
+
 router.get('/', getAllBiddingRooms);
 
-// DELETE /api/admin/bidding-rooms/:id
+
+router.post('/', createBiddingRoom);
+
+
+router.put('/:id', updateBiddingRoomById);
+
+
 router.delete('/:id', deleteBiddingRoomById);
 
 module.exports = router;
