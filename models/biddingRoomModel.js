@@ -9,11 +9,17 @@ const biddingRoomSchema = new mongoose.Schema({
     imageUrl: { type: String, required: true },
     endTime: { type: Date, required: true },
     seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    status: { type: String, enum: ['active', 'sold', 'expired'], default: 'active' }
+    status: { type: String, enum: ['active', 'sold', 'expired'], default: 'active' },
+    bids: [{
+        bidder: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        amount: { type: Number, required: true },
+        timestamp: { type: Date, default: Date.now }
+    }]
 }, { timestamps: true });
 
+
 // A pre-save hook to ensure the starting price is set as the initial current price
-biddingRoomSchema.pre('save', function(next) {
+biddingRoomSchema.pre('save', function (next) {
     if (this.isNew) {
         this.currentPrice = this.startingPrice;
     }

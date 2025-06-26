@@ -1,7 +1,4 @@
-// File: backend/models/user.model.js
-
 const mongoose = require("mongoose");
-
 const UserSchema = new mongoose.Schema(
     {
         username: { type: String, required: true, unique: true },
@@ -10,10 +7,10 @@ const UserSchema = new mongoose.Schema(
         lastName: { type: String, required: true },
         password: { type: String, required: true },
         
-        // --- SPRINT 2 ADDITION ---
+       
         role: {
             type: String,
-            enum: ['user', 'admin'], // Role can only be 'user' or 'admin'
+            enum: ['user', 'admin'], 
             default: 'user'         // New users are automatically assigned the 'user' role
         },
 
