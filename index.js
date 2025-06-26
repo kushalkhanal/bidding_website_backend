@@ -5,11 +5,13 @@ const cors = require('cors');
 const connectDB = require('./config/db.js');
 const { protect, isAdmin } = require('./middlewares/authMiddleware.js');
 const authRoutes = require('./routes/userRoutes.js');
+const biddingRoomRoutes = require('./routes/biddingRoomRoutes.js');
 
 
 const adminDashboardRoutes = require('./routes/admin/dashboardRoutes.js');
 const adminUserRoutes = require('./routes/admin/userManagementRoutes.js');
 const adminBiddingRoomRoutes = require('./routes/admin/biddingRoomManagementRoutes.js');
+
 
 
 dotenv.config();
@@ -21,12 +23,14 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/bidding-rooms', biddingRoomRoutes);
 
 
 // Any request to these endpoints will first be checked by 'protect', then by 'isAdmin'
 app.use('/api/admin/dashboard', protect, isAdmin, adminDashboardRoutes);
 app.use('/api/admin/users', protect, isAdmin, adminUserRoutes);
 app.use('/api/admin/bidding-rooms', protect, isAdmin, adminBiddingRoomRoutes);
+
 
 
 
