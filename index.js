@@ -1,16 +1,16 @@
+// File: backend/index.js
 
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db.js');
-const bodyParser = require('body-parser');
 
 // --- Load Middlewares ---
 const { protect, isAdmin } = require('./middlewares/authMiddleware.js');
 
 // --- Load ALL Route Files ---
-const authRoutes = require('./routes/userRoutes.js');
-const publicBiddingRoutes = require('./routes/biddingRoomRoutes.js'); // For public viewing
+const authRoutes = require('./routes/userRoutes.js'); 
+const biddingRoutes = require('./routes/biddingRoomRoutes.js'); // <-- THIS IS THE UNIFIED PUBLIC ROUTE FILE
 const adminDashboardRoutes = require('./routes/admin/dashboardRoutes.js');
 const adminUserRoutes = require('./routes/admin/userManagementRoutes.js');
 const adminBiddingRoomRoutes = require('./routes/admin/biddingRoomManagementRoutes.js');
@@ -20,24 +20,22 @@ dotenv.config();
 connectDB();
 const app = express();
 
-// --- Core Middlewares (MUST be before routes) ---
+// --- Core Middlewares ---
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
 
-// --- API ROUTING (Clear Separation - THE FIX) ---
-
-// === 1. Public Routes (No security) ===
+// === 1. Public & User-Level Routes (No Admin Required) ===
 app.use('/api/auth', authRoutes);
-app.use('/api/bidding-rooms', publicBiddingRoutes); // This now exclusively handles public GET requests for rooms
+// This is the crucial line: any request to /api/bidding-rooms will be handled by our unified public routes.
+app.use('/api/bidding-rooms', biddingRoutes);
 
-// === 2. Admin Routes (Protected) ===
+
+// === 2. Admin Routes (Protected by 'protect' and 'isAdmin' middleware) ===
 app.use('/api/admin/dashboard', protect, isAdmin, adminDashboardRoutes);
 app.use('/api/admin/users', protect, isAdmin, adminUserRoutes);
-// This route is now unique and will not conflict with the public one.
-app.use('/api/admin/bidding-rooms', protect, isAdmin, adminBiddingRoomRoutes);
+app.use('/api/admin/bidding-rooms', protect, isAdmin, adminBiddingRoomRoutes); // Admin C-U-D route
 
 
-// --- Start the Server ---
+// --- Start the Server --- 
 const PORT = process.env.PORT || 5050;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

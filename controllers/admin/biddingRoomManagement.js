@@ -1,16 +1,5 @@
+ const BiddingRoom = require('../../models/biddingRoomModel.js');
 
-const BiddingRoom = require('../../models/biddingRoomModel.js');
-
-
-exports.getAllBiddingRooms = async (req, res) => {
-    try {
-        const rooms = await BiddingRoom.find({}).populate('seller', 'username email');
-        res.status(200).json(rooms);
-    } catch (error) {
-        console.error("Error fetching bidding rooms:", error);
-        res.status(500).json({ message: "Server Error", error: error.message });
-    }
-};
 exports.createBiddingRoom = async (req, res) => {
     const { name, description, startingPrice, imageUrl, endTime } = req.body;
 
