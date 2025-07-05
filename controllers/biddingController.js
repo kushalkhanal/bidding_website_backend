@@ -1,6 +1,5 @@
 const BiddingRoom = require('../models/biddingRoomModel.js');
 
-
 exports.getAllPublicBiddingRooms = async (req, res) => {
     try {
         const rooms = await BiddingRoom.find({ status: 'active' })
@@ -12,7 +11,6 @@ exports.getAllPublicBiddingRooms = async (req, res) => {
         res.status(500).json({ message: "Server Error" });
     }
 };
-
 
 exports.getBiddingRoomById = async (req, res) => {
     try {
@@ -39,6 +37,7 @@ exports.placeBid = async (req, res) => {
     }
     try {
         const room = await BiddingRoom.findById(req.params.id);
+        const bidAmount = parseFloat(amount);
         if (!room) return res.status(404).json({ message: "Bidding room not found." });
         if (new Date() > room.endTime) return res.status(400).json({ message: "This auction has already ended." });
         if (parseFloat(amount) <= room.currentPrice) return res.status(400).json({ message: `Your bid must be higher than the current price of $${room.currentPrice}.` });

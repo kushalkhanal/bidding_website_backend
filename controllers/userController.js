@@ -1,11 +1,13 @@
-const User = require("../models/userModel.js"); 
+const User = require("../models/userModel.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const BiddingRoom = require('../models/biddingRoomModel.js');
+
 
 
 exports.registerUser = async (req, res) => {
     console.log("Hitting register user");
-    
+
     const { username, email, firstName, lastName, password } = req.body;
 
     if (!username || !email || !firstName || !lastName || !password) {
@@ -81,17 +83,17 @@ exports.loginUser = async (req, res) => {
             });
         }
 
-       
+
         const token = jwt.sign(
             {
                 userId: user._id,
                 username: user.username,
-                role: user.role 
+                role: user.role
             },
             process.env.JWT_SECRET, { expiresIn: "7d" }
         );
 
-      
+
         return res.status(200).json({
             success: true,
             token,
@@ -102,13 +104,47 @@ exports.loginUser = async (req, res) => {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 role: user.role,
-                wallet: user.wallet 
+                wallet: user.wallet
             },
         });
-     
+
 
     } catch (error) {
         console.error("Login Error:", error);
         return res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+exports.getMyBidHistory = async (req, res) => {
+    try {
+
+        const roomsBiddedOn = await BiddingRoom.find({ 'bids.bidder': req.user.id })
+            .populate('seller', 'username')
+            .sort({ updatedAt: -1 });
+
+        const now = new Date();
+        const bidHistory = {
+            winning: [],
+            activeOrOutbid: []
+        };
+        for (const room of roomsBiddedOn) {
+            const userHighestBid = room.bids
+                .filter(bid => bid.bidder.toString() === req.user.id)
+                .reduce((max, bid) => (bid.amount > max.amount ? bid : max));
+
+            const isAuctionOver = now > new Date(room.endTime);
+            const isUserTheWinner = room.currentPrice === userHighestBid.amount;
+
+            if (isAuctionOver && isUserTheWinner) {
+                bidHistory.winning.push(room);
+            } else {
+                bidHistory.activeOrOutbid.push(room);
+            }
+        }
+
+        res.status(200).json(bidHistory);
+
+    } catch (error) {
+        console.error("Error fetching bid history:", error);
+        res.status(500).json({ message: "Server Error" });
     }
 };
