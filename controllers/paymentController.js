@@ -2,8 +2,7 @@ const crypto = require('crypto'); // Node.js's built-in module for creating secu
 const User = require('../models/userModel.js');
 
 exports.initiateEsewaPayment = async (req, res) => {
-    // Get the amount and user ID from the incoming request.
-    // The 'req.user' object is attached by our 'protect' middleware.
+  
     const { amount } = req.body;
     const userId = req.user.id; 
 
@@ -17,7 +16,6 @@ exports.initiateEsewaPayment = async (req, res) => {
     const transaction_uuid = `BIDSITE-${Date.now()}-${userId}`; // A unique ID for this transaction
     const product_code = process.env.ESEWA_MERCHANT_CODE;
 
-    // The URLs on your frontend where eSewa will redirect the user after payment.
     const success_url = "http://localhost:5173/payment/success";
     const failure_url = "http://localhost:5173/payment/failure";
 
@@ -26,7 +24,7 @@ exports.initiateEsewaPayment = async (req, res) => {
 
     const hmac = crypto.createHmac('sha256', process.env.ESEWA_MERCHANT_SECRET);
     hmac.update(signatureString);
-    const signature = hmac.digest('base64'); // The final signature
+    const signature = hmac.digest('base64'); 
 
     const formData = {
         amount: total_amount,
