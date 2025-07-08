@@ -1,9 +1,7 @@
-// File: backend/controllers/admin/biddingRoomManagement.js
+
 
 const BiddingRoom = require('../../models/biddingRoomModel.js');
 
-// --- THIS IS THE MISSING FUNCTION. WE ARE ADDING IT BACK. ---
-// === READ: Get all bidding rooms for the admin panel ===
 exports.getAllBiddingRooms = async (req, res) => {
     try {
         const rooms = await BiddingRoom.find({})
