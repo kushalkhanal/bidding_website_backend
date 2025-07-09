@@ -20,24 +20,23 @@ exports.getAllBiddingRooms = async (req, res) => {
         res.status(500).json({ message: "Server Error", error: error.message });
     }
 };
-// -----------------------------------------------------------
 
-// === CREATE: Admin adds a new bidding room ===
 exports.createBiddingRoom = async (req, res) => {
-    const { name, description, startingPrice, imageUrl, endTime } = req.body;
+    const { name, description, startingPrice, endTime } = req.body;
 
-    if (!name || !description || !startingPrice || !imageUrl || !endTime) {
-        return res.status(400).json({ message: "Please provide all required fields." });
+    if (!name || !description || !startingPrice || !endTime || !req.files || req.files.length === 0) {
+        return res.status(400).json({ message: "Please provide all required fields and at least one image." });
     }
 
     try {
+        const imageUrls = req.files.map(file => `/${file.path.replace(/\\/g, "/")}`);
         const newRoom = new BiddingRoom({
             name,
             description,
             startingPrice,
-            imageUrl,
+            imageUrls,
             endTime,
-            seller: req.user.id // Assumes 'protect' middleware has run and attached the user
+            seller: req.user.id
         });
 
         const createdRoom = await newRoom.save();
@@ -48,7 +47,7 @@ exports.createBiddingRoom = async (req, res) => {
     }
 };
 
-// === UPDATE: Admin modifies an existing bidding room ===
+
 exports.updateBiddingRoomById = async (req, res) => {
     try {
         const room = await BiddingRoom.findById(req.params.id);
@@ -74,7 +73,6 @@ exports.updateBiddingRoomById = async (req, res) => {
     }
 };
 
-// === DELETE: Admin removes a bidding room ===
 exports.deleteBiddingRoomById = async (req, res) => {
     try {
         const room = await BiddingRoom.findById(req.params.id);

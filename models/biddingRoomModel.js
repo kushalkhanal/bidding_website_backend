@@ -6,7 +6,7 @@ const biddingRoomSchema = new mongoose.Schema({
     description: { type: String, required: true },
     startingPrice: { type: Number, required: true, default: 0 },
     currentPrice: { type: Number, required: true, default: 0 },
-    imageUrl: { type: String, required: true },
+    imageUrls: { type: [String], required: true },
     endTime: { type: Date, required: true },
     seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     status: { type: String, enum: ['active', 'sold', 'expired'], default: 'active' },

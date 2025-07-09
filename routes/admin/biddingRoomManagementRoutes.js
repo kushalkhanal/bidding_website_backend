@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { productImagesUpload } = require('../../middlewares/uploadMiddleware.js');
 
 const {
     getAllBiddingRooms,
@@ -7,9 +8,10 @@ const {
     updateBiddingRoomById,
     deleteBiddingRoomById
 } = require('../../controllers/admin/biddingRoomManagement.js');
+
 router.get('/', getAllBiddingRooms);
-router.post('/', createBiddingRoom);
 router.put('/:id', updateBiddingRoomById);
 router.delete('/:id', deleteBiddingRoomById);
+router.post('/', productImagesUpload, createBiddingRoom);
 
 module.exports = router;
