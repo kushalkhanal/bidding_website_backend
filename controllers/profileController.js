@@ -1,45 +1,59 @@
 
 const User = require('../models/userModel.js');
 const BiddingRoom = require('../models/biddingRoomModel.js');
+const jwt = require('jsonwebtoken');
 
+
+const generateToken = (id, firstName, role) => {
+    return jwt.sign({ userId: id, firstName, role }, process.env.JWT_SECRET, {
+        expiresIn: '7d',
+    });
+};
 
 exports.getMyProfileData = async (req, res) => {
     try {
-        const userId = req.user.id; // From the 'protect' middleware
+        const userId = req.user.id;
+        console.log(`Fetching profile data for user ID: ${userId}`);
+
         const [
             userProfile,
             listedItems,
             roomsBiddedOn
         ] = await Promise.all([
-            User.findById(userId).select('-password'), // Get user data, exclude password
-            BiddingRoom.find({ seller: userId }).sort({ createdAt: -1 }), // Get items the user is selling
-            BiddingRoom.find({ 'bids.bidder': userId }).populate('seller', 'firstName lastName').sort({ updatedAt: -1 }) // Get rooms the user has bid on
+            User.findById(userId).select('-password').lean(), // Using .lean() for performance
+            BiddingRoom.find({ seller: userId }).sort({ createdAt: -1 }).lean(),
+            BiddingRoom.find({ 'bids.bidder': userId }).populate('seller', 'firstName lastName').sort({ updatedAt: -1 }).lean()
         ]);
 
         if (!userProfile) {
+            console.log(`User profile not found for ID: ${userId}`);
             return res.status(404).json({ message: 'User profile not found.' });
         }
 
-    
         const now = new Date();
         const winningBids = [];
         const activeOrOutbid = [];
 
-        for (const room of roomsBiddedOn) {
-            const userHighestBid = room.bids
-                .filter(bid => bid.bidder.toString() === userId)
-                .reduce((max, bid) => (bid.amount > max.amount ? bid : max));
-            
-            const isAuctionOver = now > new Date(room.endTime);
-            const isUserTheWinner = room.currentPrice === userHighestBid.amount;
 
-            if (isAuctionOver && isUserTheWinner) {
-                winningBids.push(room);
-            } else {
-                activeOrOutbid.push(room);
+        for (const room of roomsBiddedOn) {
+            if (room.bids && room.bids.length > 0) {
+                const userBidsOnThisRoom = room.bids.filter(bid => bid.bidder && bid.bidder.toString() === userId);
+
+                if (userBidsOnThisRoom.length > 0) {
+                    const userHighestBid = userBidsOnThisRoom.reduce((max, bid) => (bid.amount > max.amount ? bid : max));
+
+                    const isAuctionOver = now > new Date(room.endTime);
+                    const isUserTheWinner = room.currentPrice === userHighestBid.amount;
+
+                    if (isAuctionOver && isUserTheWinner) {
+                        winningBids.push(room);
+                    } else {
+                        activeOrOutbid.push(room);
+                    }
+                }
             }
         }
-    
+        console.log("Successfully fetched all profile data.");
         res.status(200).json({
             profile: userProfile,
             listedItems,
@@ -47,35 +61,63 @@ exports.getMyProfileData = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Error fetching profile data:", error);
-        res.status(500).json({ message: "Server Error" });
+
+        console.error("CRITICAL ERROR in getMyProfileData:", error);
+        res.status(500).json({ message: "Server Error while fetching profile data." });
+
     }
 };
 
+
 exports.updateMyProfile = async (req, res) => {
     try {
-        const { firstName, lastName, number, location } = req.body;
         const user = await User.findById(req.user.id);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
+        if (req.body.firstName) user.firstName = req.body.firstName;
+        if (req.body.lastName) user.lastName = req.body.lastName;
+        if (req.body.number) user.number = req.body.number;
+        if (req.body.location) user.location = req.body.location;
 
-        user.firstName = firstName || user.firstName;
-        user.lastName = lastName || user.lastName;
-        user.number = number || user.number;
-        user.location = location || user.location;
 
         if (req.file) {
-            user.profileImage = `/${req.file.path.replace(/\\/g, "/")}`;
+            const imagePath = '/' + req.file.path.replace(/\\/g, "/");
+            user.profileImage = imagePath;
         }
-        
-        await user.save();
-        const userResponse = { ...user._doc };
-        delete userResponse.password;
 
-        res.json(userResponse);
+        const updatedUser = await user.save();
+
+
+        const token = jwt.sign(
+            { userId: updatedUser._id, firstName: updatedUser.firstName, role: updatedUser.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+
+        res.json({
+            user: {
+                id: updatedUser._id,
+                email: updatedUser.email,
+                firstName: updatedUser.firstName,
+                lastName: updatedUser.lastName,
+                number: updatedUser.number,
+                role: updatedUser.role,
+                wallet: updatedUser.wallet,
+                profileImage: updatedUser.profileImage,
+                location: updatedUser.location,
+            },
+            token: token
+        });
+
     } catch (error) {
-        console.error("Profile update error:", error);
-        res.status(500).json({ message: 'Server Error' });
+
+        console.error("--- PROFILE UPDATE FAILED ---");
+        console.error("Error:", error.message);
+        console.error("Request Body:", req.body);
+        console.error("Request File:", req.file);
+        console.error("-----------------------------");
+        res.status(500).json({ message: 'Server Error during profile update.' });
     }
 };

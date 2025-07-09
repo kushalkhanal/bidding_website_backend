@@ -2,8 +2,8 @@ const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db.js');
+const path = require('path');
 
-// --- Load Middlewares ---
 const { protect, isAdmin } = require('./middlewares/authMiddleware.js');
 
 const authRoutes = require('./routes/authRoutes.js'); // <-- New auth-only routes
@@ -25,7 +25,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// === 1. Public & User-Level Routes (No Admin Required) ===
+app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
+
 
 app.use('/api/auth', authRoutes); 
 app.use('/api/users', userRoutes);

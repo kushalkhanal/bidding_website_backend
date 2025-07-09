@@ -9,14 +9,12 @@ const UserSchema = new mongoose.Schema(
         password: { type: String, required: true },
         
         
-        nepaliNumber: { 
+        number: { 
             type: String, 
             required: true,
             unique: true,
-            // Optional but recommended: Add validation for a 10-digit number
             match: [/^\d{10}$/, 'Please fill a valid 10-digit mobile number'] 
         },
-        // -----------------------------
 
         role: { type: String, enum: ['user', 'admin'], default: 'user' },
         wallet: { type: Number, default: 0 },
