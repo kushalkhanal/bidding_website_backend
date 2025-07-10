@@ -1,4 +1,3 @@
-// File: backend/models/category.model.js
 
 const mongoose = require('mongoose');
 
