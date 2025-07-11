@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getMyProfileData, updateMyProfile } = require('../controllers/profileController.js');
+const { getMyProfileData, updateMyProfile, getMyListedItems } = require('../controllers/profileController.js');
 const { protect } = require('../middlewares/authMiddleware.js');
 const { profileImageUpload } = require('../middlewares/uploadMiddleware.js');
 
@@ -12,4 +12,6 @@ router.get('/', getMyProfileData);
 
 // PUT /api/profile - Updates user settings, handles image upload
 router.put('/', profileImageUpload, updateMyProfile);
+
+router.get('/listed-items', getMyListedItems);
 module.exports = router;
