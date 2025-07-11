@@ -1,5 +1,3 @@
-
-
 const BiddingRoom = require('../../models/biddingRoomModel.js');
 
 exports.getAllBiddingRooms = async (req, res) => {

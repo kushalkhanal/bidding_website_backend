@@ -1,21 +1,20 @@
-// File: backend/routes/biddingRoutes.js
-// This file defines all public-facing and user-level routes for bidding.
-
 const express = require('express');
 const router = express.Router();
 
-// Import all functions from our unified controller
-const { 
+const {
     getAllPublicBiddingRooms, // <-- The function for your main Auctions page
     getBiddingRoomById,
-    placeBid
+    placeBid,
+    createBiddingRoom
 } = require('../controllers/biddingController.js');
 
 // Import the 'protect' middleware for actions that require a user to be logged in
 const { protect } = require('../middlewares/authMiddleware.js');
+const { productImagesUpload } = require('../middlewares/uploadMiddleware.js');
 
-// --- PUBLIC ROUTES (anyone can access) ---
-// GET /api/bidding-rooms/
+
+router.post('/', protect, productImagesUpload, createBiddingRoom);
+
 router.get('/', getAllPublicBiddingRooms);
 
 // GET /api/bidding-rooms/:id

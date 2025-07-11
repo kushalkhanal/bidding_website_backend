@@ -32,12 +32,12 @@ const profileImageUpload = multer({
 
 const productImagesUpload = multer({
     storage: storage,
-    limits: { fileSize: 2000000 }, // 2MB per file
+    limits: { fileSize: 5000000 }, // 5MB per file
     fileFilter: function (req, file, cb) {
         checkFileType(file, cb);
     }
 }).array('productImages', 5); // Expects MULTIPLE files (up to 5) from a field named 'productImages'
-// -----------------------------
+
 
 
 module.exports = {

@@ -2,12 +2,28 @@ const BiddingRoom = require('../models/biddingRoomModel.js');
 
 exports.getAllPublicBiddingRooms = async (req, res) => {
     try {
+        // 1. Get page and limit from query parameters, with default values
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 8; // e.g., 8 items per page
+        const skip = (page - 1) * limit; // Calculate how many items to skip
+
+        const totalProducts = await BiddingRoom.countDocuments({ status: 'active' });
+
         const rooms = await BiddingRoom.find({ status: 'active' })
-            .sort({ createdAt: -1 }) // Show newest first
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .skip(skip)
             .populate('seller', 'username');
-        res.status(200).json(rooms);
+
+        res.status(200).json({
+            products: rooms,
+            page: page,
+            totalPages: Math.ceil(totalProducts / limit),
+            totalProducts: totalProducts
+        });
+
     } catch (error) {
-        console.error("Error fetching all public rooms:", error);
+        console.error("Error fetching public products:", error);
         res.status(500).json({ message: "Server Error" });
     }
 };
@@ -27,6 +43,27 @@ exports.getBiddingRoomById = async (req, res) => {
         res.status(500).json({ message: "Server Error" });
     }
 };
+
+
+
+
+exports.createBiddingRoom = async (req, res) => {
+    const { name, description, startingPrice, endTime } = req.body;
+    if (!name || !description || !startingPrice || !endTime || !req.files || req.files.length === 0) {
+        return res.status(400).json({ message: "Please provide all required fields and at least one image." });
+    }
+    try {
+        const imageUrls = req.files.map(file => `/${file.path.replace(/\\/g, "/")}`);
+        const newRoom = new BiddingRoom({
+            name, description, startingPrice, endTime, imageUrls,
+            seller: req.user.id // From 'protect' middleware
+        });
+        const createdRoom = await newRoom.save();
+        res.status(201).json(createdRoom);
+    } catch (error) {
+        res.status(500).json({ message: "Server Error", error: error.message });
+    }
+}
 
 exports.placeBid = async (req, res) => {
     const { amount } = req.body;

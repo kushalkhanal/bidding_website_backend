@@ -1,42 +1,40 @@
 const User = require("../models/userModel.js");
+const BiddingRoom = require('../models/biddingRoomModel.js');
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const BiddingRoom = require('../models/biddingRoomModel.js');
-
-
 
 exports.registerUser = async (req, res) => {
-    console.log("Hitting register user");
+    const { email, firstName, lastName, password, number } = req.body;
 
-    const { username, email, firstName, lastName, password } = req.body;
-
-    if (!username || !email || !firstName || !lastName || !password) {
-        return res.status(400).json({ // Changed to 400 for Bad Request
+    if (!email || !firstName || !lastName || !password || !number) {
+        return res.status(400).json({
             success: false,
             message: "Please fill all the fields"
         });
     }
 
     try {
+        // 3. Check for existing email or number
         const existingUser = await User.findOne({
-            $or: [{ username }, { email }]
+            $or: [{ email }, { number }]
         });
 
         if (existingUser) {
-            return res.status(409).json({ // Changed to 409 for Conflict
+            return res.status(409).json({
                 success: false,
-                message: "User already exists"
+                message: "A user with this email or phone number already exists."
             });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // 4. Create the new user with 'number'
         const newUser = new User({
-            username,
             email,
             firstName,
             lastName,
-            password: hashedPassword
+            password: hashedPassword,
+            number
         });
 
         await newUser.save();
@@ -48,6 +46,10 @@ exports.registerUser = async (req, res) => {
 
     } catch (e) {
         console.error("Error in registerUser:", e);
+        // Provide a more specific error message if it's a validation error
+        if (e.name === 'ValidationError') {
+            return res.status(400).json({ success: false, message: e.message });
+        }
         return res.status(500).json({
             success: false,
             message: "Server error"
@@ -55,6 +57,8 @@ exports.registerUser = async (req, res) => {
     }
 };
 
+
+// --- loginUser function (CORRECTED) ---
 exports.loginUser = async (req, res) => {
     const { email, password } = req.body;
 
@@ -69,7 +73,7 @@ exports.loginUser = async (req, res) => {
         const user = await User.findOne({ email: email });
 
         if (!user) {
-            return res.status(404).json({ // Changed to 404 for Not Found
+            return res.status(404).json({
                 "success": false,
                 "message": "User not found"
             });
@@ -83,66 +87,66 @@ exports.loginUser = async (req, res) => {
             });
         }
 
-
+        // 5. The JWT payload no longer contains 'username'
         const token = jwt.sign(
             {
                 userId: user._id,
-                username: user.username,
+                firstName: user.firstName, // Use firstName for display purposes
                 role: user.role
             },
             process.env.JWT_SECRET, { expiresIn: "7d" }
         );
 
-
+        // 6. The returned user object no longer contains 'username'
         return res.status(200).json({
             success: true,
             token,
             user: {
                 id: user._id,
-                username: user.username,
                 email: user.email,
                 firstName: user.firstName,
                 lastName: user.lastName,
+                number: user.number, // Include the number
                 role: user.role,
                 wallet: user.wallet
             },
         });
-
 
     } catch (error) {
         console.error("Login Error:", error);
         return res.status(500).json({ success: false, message: 'Server error' });
     }
 };
+
+
+// --- getMyBidHistory function (CORRECTED) ---
 exports.getMyBidHistory = async (req, res) => {
     try {
-
-        const roomsBiddedOn = await BiddingRoom.find({ 'bids.bidder': req.user.id })
-            .populate('seller', 'username')
+        const userId = req.user.id;
+        // 7. Populate with 'firstName' and 'lastName' instead of 'username'
+        const roomsBiddedOn = await BiddingRoom.find({ 'bids.bidder': userId })
+            .populate('seller', 'firstName lastName')
             .sort({ updatedAt: -1 });
 
         const now = new Date();
-        const bidHistory = {
-            winning: [],
-            activeOrOutbid: []
-        };
+        const bidHistory = { winning: [], activeOrOutbid: [] };
+
         for (const room of roomsBiddedOn) {
-            const userHighestBid = room.bids
-                .filter(bid => bid.bidder.toString() === req.user.id)
-                .reduce((max, bid) => (bid.amount > max.amount ? bid : max));
-
-            const isAuctionOver = now > new Date(room.endTime);
-            const isUserTheWinner = room.currentPrice === userHighestBid.amount;
-
-            if (isAuctionOver && isUserTheWinner) {
-                bidHistory.winning.push(room);
-            } else {
-                bidHistory.activeOrOutbid.push(room);
+            if (room.bids && room.bids.length > 0) {
+                const userBidsOnThisRoom = room.bids.filter(bid => bid.bidder && bid.bidder.toString() === userId);
+                if (userBidsOnThisRoom.length > 0) {
+                    const userHighestBid = userBidsOnThisRoom.reduce((max, bid) => (bid.amount > max.amount ? bid : max));
+                    const isAuctionOver = now > new Date(room.endTime);
+                    const isUserTheWinner = room.currentPrice === userHighestBid.amount;
+                    if (isAuctionOver && isUserTheWinner) {
+                        bidHistory.winning.push(room);
+                    } else {
+                        bidHistory.activeOrOutbid.push(room);
+                    }
+                }
             }
         }
-
         res.status(200).json(bidHistory);
-
     } catch (error) {
         console.error("Error fetching bid history:", error);
         res.status(500).json({ message: "Server Error" });
