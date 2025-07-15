@@ -1,42 +1,35 @@
+
 const request = require("supertest");
 const app = require("../index");
 const mongoose = require("mongoose");
 const User = require("../models/userModel");
-const { testUser, adminUser } = require("./setup");
-
-let userToken;
-let createdRoomId;
-
-// Fetch a login token before running tests in this file
-beforeAll(async () => {
-    // We need a registered user to get a token
-    await request(app).post("/api/auth/register").send(testUser);
-    const res = await request(app).post("/api/auth/login").send({ email: testUser.email, password: testUser.password });
-    userToken = res.body.token;
-});
+const { testUser, adminUser, getAuthToken, getAdminToken } = require("./setup"); // Import token getters
 
 describe("Public & User Bidding API (/api/bidding-rooms)", () => {
-    
+    let createdRoomId;
+
     // Test: Should allow anyone to fetch a list of active bidding rooms
-    test("GET / should return a list of bidding rooms", async () => {
-        const res = await request(app).get("/api/bidding-rooms");
-        expect(res.statusCode).toBe(200);
-        expect(Array.isArray(res.body)).toBe(true);
-    });
+    test("GET / should return a paginated object with a products array", async () => {
+    const res = await request(app).get("/api/bidding-rooms");
+    expect(res.statusCode).toBe(200);
+    // Now we check that the 'products' key within the response body is an array.
+    expect(Array.isArray(res.body.products)).toBe(true); 
+});
 
     // Test: Should allow a logged-in user to create a new listing
     test("POST / should create a new bidding room for an authenticated user", async () => {
+        const token = getAuthToken(); // Get the valid token for the regular user
         const res = await request(app)
             .post("/api/bidding-rooms")
-            .set("Authorization", `Bearer ${userToken}`)
-            .field("name", "Vintage Fountain Pen")
-            .field("description", "A classic pen from the 1950s.")
-            .field("startingPrice", 50)
+            .set("Authorization", `Bearer ${token}`)
+            .field("name", "Test Watch from Bidding Test")
+            .field("description", "A nice watch")
+            .field("startingPrice", 100)
             .field("endTime", new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString())
-            .attach("productImages", Buffer.from("fake_image"), "pen.jpg");
+            .attach("productImages", Buffer.from("fake_image_data"), "test-image.jpg");
         
         expect(res.statusCode).toBe(201);
-        expect(res.body.name).toBe("Vintage Fountain Pen");
+        expect(res.body.name).toBe("Test Watch from Bidding Test");
         createdRoomId = res.body._id; // Save ID for subsequent tests
     });
 
@@ -56,34 +49,37 @@ describe("Public & User Bidding API (/api/bidding-rooms)", () => {
 
     // Test: Should prevent unauthenticated users from bidding
     test("POST /:id/bids should return 401 if user is not logged in", async () => {
-        const res = await request(app).post(`/api/bidding-rooms/${createdRoomId}/bids`).send({ amount: 60 });
+        const res = await request(app).post(`/api/bidding-rooms/${createdRoomId}/bids`).send({ amount: 110 });
         expect(res.statusCode).toBe(401);
     });
 
-    // Test: Should prevent users from bidding on their own item
+    // Test: Should prevent a user from bidding on their own item
     test("POST /:id/bids should return 400 if a user bids on their own item", async () => {
+        const token = getAuthToken(); // The user who created the item
         const res = await request(app)
             .post(`/api/bidding-rooms/${createdRoomId}/bids`)
-            .set("Authorization", `Bearer ${userToken}`)
-            .send({ amount: 70 });
+            .set("Authorization", `Bearer ${token}`)
+            .send({ amount: 110 }); // Try to bid on their own item
         expect(res.statusCode).toBe(400);
         expect(res.body.message).toBe("You cannot bid on your own item.");
     });
 
     // Test: Should successfully place a bid for an authenticated user with sufficient funds
     test("POST /:id/bids should successfully place a bid", async () => {
-        // Create another user to act as the bidder
-        const bidder = await new User({ ...adminUser }).save();
-        await User.updateOne({ _id: bidder._id }, { $set: { wallet: 500 } });
-        const bidderRes = await request(app).post("/api/auth/login").send({ email: adminUser.email, password: adminUser.password });
-        const bidderToken = bidderRes.body.token;
+        const token = getAdminToken(); // Use the admin user as the bidder
+
+        // --- THIS IS THE FIX ---
+        // Before placing the bid, we ensure the bidder has enough money in their wallet.
+        await User.updateOne({ email: adminUser.email }, { $set: { wallet: 500 } });
+        // -----------------------
 
         const res = await request(app)
             .post(`/api/bidding-rooms/${createdRoomId}/bids`)
-            .set("Authorization", `Bearer ${bidderToken}`)
-            .send({ amount: 60 });
+            .set("Authorization", `Bearer ${token}`)
+            .send({ amount: 120 });
 
         expect(res.statusCode).toBe(201);
-        expect(res.body.room.currentPrice).toBe(60);
+        expect(res.body.message).toBe("Bid placed successfully!");
+        expect(res.body.room.currentPrice).toBe(120);
     });
 });
