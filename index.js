@@ -18,7 +18,7 @@ const profileRoutes = require('./routes/profileRoutes.js');
 
 
 dotenv.config();
-connectDB();
+// connectDB();
 const app = express();
 
 // --- Core Middlewares ---
@@ -42,5 +42,4 @@ app.use('/api/admin/bidding-rooms', protect, isAdmin, adminBiddingRoomRoutes); /
 
 
 
-const PORT = process.env.PORT || 5050;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+module.exports = app;
