@@ -15,7 +15,7 @@ const adminUserRoutes = require('./routes/admin/userManagementRoutes.js');
 const adminBiddingRoomRoutes = require('./routes/admin/biddingRoomManagementRoutes.js');
 const paymentRoutes = require('./routes/paymentRoutes.js'); 
 const profileRoutes = require('./routes/profileRoutes.js');
-
+const notificationRoutes = require('./routes/notificationRoutes.js');
 
 dotenv.config();
 // connectDB();
@@ -33,7 +33,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/bidding-rooms', biddingRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/profile', profileRoutes);
-
+app.use('/api/notifications', notificationRoutes);
 
 // === 2. Admin Routes (Protected by 'protect' and 'isAdmin' middleware) ===
 app.use('/api/admin/dashboard', protect, isAdmin, adminDashboardRoutes);
