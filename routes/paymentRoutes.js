@@ -1,12 +1,23 @@
+
 const express = require('express');
 const router = express.Router();
 
-const { initiateEsewaPayment } = require('../controllers/paymentController.js');
+
+const { 
+    initiateEsewaPayment,
+    verifyEsewaPayment,
+    getTransactionHistory // <-- This was missing
+} = require('../controllers/paymentController.js');
+
 
 const { protect } = require('../middlewares/authMiddleware.js');
 
-// This creates the endpoint: POST /api/payment/esewa/initiate
+router.post("/initiate", protect, initiateEsewaPayment);
 
-router.post('/esewa/initiate', protect, initiateEsewaPayment);
+
+router.get("/history", protect, getTransactionHistory);
+
+
+router.get("/verify", verifyEsewaPayment);
 
 module.exports = router;
