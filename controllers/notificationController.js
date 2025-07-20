@@ -36,3 +36,19 @@ exports.markNotificationsAsRead = async (req, res) => {
         res.status(500).json({ message: 'Server Error' });
     }
 };
+
+exports.markNotificationsAsRead = async (req, res) => {
+    try {
+        const filter = { user: req.user.id, isRead: false };
+        if (req.body.notificationId) {
+            filter._id = req.body.notificationId;
+        }
+
+        await Notification.updateMany(filter, { $set: { isRead: true } });
+
+        res.status(200).json({ message: 'Notifications marked as read' });
+    } catch (error) {
+        console.error("Error marking notifications as read:", error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};

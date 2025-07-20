@@ -13,7 +13,7 @@ const generateToken = (id, firstName, role) => {
 exports.getMyProfileData = async (req, res) => {
     try {
         const userId = req.user.id;
-        console.log(`Fetching profile data for user ID: ${userId}`);
+        // console.log(`Fetching profile data for user ID: ${userId}`);
 
         const [
             userProfile,
@@ -26,7 +26,7 @@ exports.getMyProfileData = async (req, res) => {
         ]);
 
         if (!userProfile) {
-            console.log(`User profile not found for ID: ${userId}`);
+            // console.log(`User profile not found for ID: ${userId}`);
             return res.status(404).json({ message: 'User profile not found.' });
         }
 
@@ -53,7 +53,7 @@ exports.getMyProfileData = async (req, res) => {
                 }
             }
         }
-        console.log("Successfully fetched all profile data.");
+        // console.log("Successfully fetched all profile data.");
         res.status(200).json({
             profile: userProfile,
             listedItems,
@@ -117,7 +117,7 @@ exports.updateMyProfile = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Profile update server error:", error);
+        // console.error("Profile update server error:", error);
         if (error.name === 'ValidationError') {
             return res.status(400).json({ message: error.message });
         }

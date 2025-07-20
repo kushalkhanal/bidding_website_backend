@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/userModel.js');
 
-// Middleware to verify the JWT and attach the user to the request object
+
 const protect = async (req, res, next) => {
     let token;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
@@ -11,7 +11,7 @@ const protect = async (req, res, next) => {
 
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-            console.log("DECODED TOKEN PAYLOAD:", decoded);
+            // console.log("DECODED TOKEN PAYLOAD:", decoded);
 
 
             // 3. Get user from the token's ID and attach to the request object
@@ -36,7 +36,7 @@ const protect = async (req, res, next) => {
 };
 const isAdmin = (req, res, next) => {
 
-    console.log("isAdmin CHECK: User role is", req.user?.role);
+    // console.log("isAdmin CHECK: User role is", req.user?.role);
 
     if (req.user && req.user.role === 'admin') {
         next();
