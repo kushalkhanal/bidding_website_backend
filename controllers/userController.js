@@ -2,6 +2,9 @@ const User = require("../models/userModel.js");
 const BiddingRoom = require('../models/biddingRoomModel.js');
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { sendPasswordResetOTP } = require('../services/emailService');
+const otpGenerator = require('otp-generator');
+
 
 exports.registerUser = async (req, res) => {
     const { email, firstName, lastName, password, number } = req.body;
@@ -14,7 +17,7 @@ exports.registerUser = async (req, res) => {
     }
 
     try {
-        // 3. Check for existing email or number
+        // Check for existing email or number
         const existingUser = await User.findOne({
             $or: [{ email }, { number }]
         });
@@ -28,7 +31,6 @@ exports.registerUser = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // 4. Create the new user with 'number'
         const newUser = new User({
             email,
             firstName,
@@ -58,7 +60,6 @@ exports.registerUser = async (req, res) => {
 };
 
 
-// --- loginUser function (CORRECTED) ---
 exports.loginUser = async (req, res) => {
     const { email, password } = req.body;
 
@@ -106,7 +107,7 @@ exports.loginUser = async (req, res) => {
                 email: user.email,
                 firstName: user.firstName,
                 lastName: user.lastName,
-                number: user.number, // Include the number
+                number: user.number,
                 role: user.role,
                 wallet: user.wallet
             },
@@ -119,11 +120,9 @@ exports.loginUser = async (req, res) => {
 };
 
 
-// --- getMyBidHistory function (CORRECTED) ---
 exports.getMyBidHistory = async (req, res) => {
     try {
         const userId = req.user.id;
-        // 7. Populate with 'firstName' and 'lastName' instead of 'username'
         const roomsBiddedOn = await BiddingRoom.find({ 'bids.bidder': userId })
             .populate('seller', 'firstName lastName')
             .sort({ updatedAt: -1 });
@@ -150,5 +149,74 @@ exports.getMyBidHistory = async (req, res) => {
     } catch (error) {
         console.error("Error fetching bid history:", error);
         res.status(500).json({ message: "Server Error" });
+    }
+};
+
+exports.forgotPassword = async (req, res) => {
+    try {
+        // 1. Find the user by their email address
+        const user = await User.findOne({ email: req.body.email });
+        if (!user) {
+            // Send a generic success message even if user not found to prevent email enumeration
+            return res.status(200).json({ success: true, message: 'If a user with that email exists, a reset link has been sent.' });
+        }
+
+        // 2. Generate a 6-digit OTP
+        const otp = otpGenerator.generate(6, {
+            upperCaseAlphabets: false,
+            specialChars: false,
+            lowerCaseAlphabets: false
+        });
+
+        // 3. Set the OTP and its expiration time (10 minutes from now) on the user document
+        user.passwordResetOTP = otp;
+        user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+        await user.save();
+
+        // 4. Send the OTP to the user's email via our service
+        await sendPasswordResetOTP(user.email, otp);
+
+        res.status(200).json({ success: true, message: 'If a user with that email exists, a reset link has been sent.' });
+
+    } catch (error) {
+        console.error("Forgot password error:", error);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
+// --- FUNCTION 2: RESET PASSWORD (VERIFY OTP & UPDATE) ---
+exports.resetPassword = async (req, res) => {
+    const { otp, email, newPassword } = req.body;
+
+    if (!otp || !email || !newPassword) {
+        return res.status(400).json({ success: false, message: 'Please provide OTP, email, and a new password.' });
+    }
+
+    try {
+        // 1. Find the user by email, and check if the OTP is correct and has not expired
+        const user = await User.findOne({
+            email: email,
+            passwordResetOTP: otp,
+            passwordResetExpires: { $gt: Date.now() } // Check if the expiration date is greater than now
+        });
+
+        if (!user) {
+            return res.status(400).json({ success: false, message: 'OTP is invalid or has expired.' });
+        }
+
+        // 2. If OTP is valid, update the password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+
+        // 3. Clear the OTP fields so it can't be used again
+        user.passwordResetOTP = undefined;
+        user.passwordResetExpires = undefined;
+        await user.save();
+
+        res.status(200).json({ success: true, message: 'Password has been reset successfully.' });
+
+    } catch (error) {
+        console.error("Reset password error:", error);
+        res.status(500).json({ success: false, message: 'Server Error' });
     }
 };
