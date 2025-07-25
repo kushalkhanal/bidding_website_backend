@@ -1,13 +1,15 @@
+// File: services/emailService.js
+
 const nodemailer = require('nodemailer');
 
 // Configure the email transporter using your .env variables
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,
-    secure: false, // true for 465, false for other ports like 587
+    port: process.env.EMAIL_PORT, // Should be 465 for Gmail with SSL
+    secure: true, // Use SSL
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: process.env.EMAIL_USER, // your.email@gmail.com
+        pass: process.env.EMAIL_PASS, // The 16-digit App Password
     },
 });
 
@@ -17,8 +19,10 @@ const transporter = nodemailer.createTransport({
  * @param {string} otp - The one-time password.
  */
 const sendPasswordResetOTP = async (to, otp) => {
+    
     try {
         const mailOptions = {
+            // IMPORTANT: The 'from' address MUST be the same as your authenticated user
             from: `"Bidding Bazar" <${process.env.EMAIL_USER}>`,
             to: to,
             subject: 'Your Password Reset OTP',

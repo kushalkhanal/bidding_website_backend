@@ -153,38 +153,38 @@ exports.getMyBidHistory = async (req, res) => {
 };
 
 exports.forgotPassword = async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+        return res.status(400).json({ success: false, message: 'Email address is required.' });
+    }
+
     try {
-        // 1. Find the user by their email address
-        const user = await User.findOne({ email: req.body.email });
+        const user = await User.findOne({ email });
+
+        // To prevent email enumeration, always return a generic success message.
         if (!user) {
-            // Send a generic success message even if user not found to prevent email enumeration
-            return res.status(200).json({ success: true, message: 'If a user with that email exists, a reset link has been sent.' });
+            return res.status(200).json({ success: true, message: 'If an account with that email exists, an OTP has been sent.' });
         }
 
-        // 2. Generate a 6-digit OTP
-        const otp = otpGenerator.generate(6, {
-            upperCaseAlphabets: false,
-            specialChars: false,
-            lowerCaseAlphabets: false
-        });
+        // Generate a 6-digit OTP
+        const otp = otpGenerator.generate(6, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false });
 
-        // 3. Set the OTP and its expiration time (10 minutes from now) on the user document
+        // Set OTP and expiration on the user document (e.g., 10 minutes)
         user.passwordResetOTP = otp;
-        user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+        user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes in ms
         await user.save();
 
-        // 4. Send the OTP to the user's email via our service
+        // Send the OTP via email
         await sendPasswordResetOTP(user.email, otp);
 
-        res.status(200).json({ success: true, message: 'If a user with that email exists, a reset link has been sent.' });
+        res.status(200).json({ success: true, message: 'If an account with that email exists, an OTP has been sent.' });
 
     } catch (error) {
         console.error("Forgot password error:", error);
-        res.status(500).json({ success: false, message: 'Server Error' });
+        res.status(500).json({ success: false, message: 'Server error while processing request.' });
     }
 };
 
-// --- FUNCTION 2: RESET PASSWORD (VERIFY OTP & UPDATE) ---
 exports.resetPassword = async (req, res) => {
     const { otp, email, newPassword } = req.body;
 
@@ -193,22 +193,22 @@ exports.resetPassword = async (req, res) => {
     }
 
     try {
-        // 1. Find the user by email, and check if the OTP is correct and has not expired
+        // Find the user by email, ensuring the OTP is correct and not expired
         const user = await User.findOne({
             email: email,
             passwordResetOTP: otp,
-            passwordResetExpires: { $gt: Date.now() } // Check if the expiration date is greater than now
+            passwordResetExpires: { $gt: Date.now() } // Check if the expiration is in the future
         });
 
         if (!user) {
-            return res.status(400).json({ success: false, message: 'OTP is invalid or has expired.' });
+            return res.status(400).json({ success: false, message: 'OTP is invalid or has expired. Please try again.' });
         }
 
-        // 2. If OTP is valid, update the password
+        // Hash the new password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         user.password = hashedPassword;
 
-        // 3. Clear the OTP fields so it can't be used again
+        // Clear the OTP fields to prevent reuse
         user.passwordResetOTP = undefined;
         user.passwordResetExpires = undefined;
         await user.save();
@@ -217,6 +217,6 @@ exports.resetPassword = async (req, res) => {
 
     } catch (error) {
         console.error("Reset password error:", error);
-        res.status(500).json({ success: false, message: 'Server Error' });
+        res.status(500).json({ success: false, message: 'Server error while resetting password.' });
     }
 };

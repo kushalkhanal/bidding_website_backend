@@ -1,14 +1,19 @@
+
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db.js');
 const path = require('path');
 
+
+dotenv.config({ path: path.resolve(__dirname, './.env') });
+
+connectDB();
+
 const { protect, isAdmin } = require('./middlewares/authMiddleware.js');
 
-const authRoutes = require('./routes/authRoutes.js'); // <-- New auth-only routes
+const authRoutes = require('./routes/authRoutes.js');
 const userRoutes = require('./routes/userRoutes.js');
-
 const biddingRoutes = require('./routes/biddingRoomRoutes.js'); 
 const adminDashboardRoutes = require('./routes/admin/dashboardRoutes.js');
 const adminUserRoutes = require('./routes/admin/userManagementRoutes.js');
@@ -17,8 +22,7 @@ const paymentRoutes = require('./routes/paymentRoutes.js');
 const profileRoutes = require('./routes/profileRoutes.js');
 const notificationRoutes = require('./routes/notificationRoutes.js');
 
-dotenv.config();
-// connectDB();
+// Create the express app
 const app = express();
 
 // --- Core Middlewares ---
@@ -27,7 +31,7 @@ app.use(express.json());
 
 app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
 
-
+// --- API Routes ---
 app.use('/api/auth', authRoutes); 
 app.use('/api/users', userRoutes);
 app.use('/api/bidding-rooms', biddingRoutes);
@@ -35,11 +39,9 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-// === 2. Admin Routes (Protected by 'protect' and 'isAdmin' middleware) ===
+// --- Admin Routes (Protected by 'protect' and 'isAdmin' middleware) ---
 app.use('/api/admin/dashboard', protect, isAdmin, adminDashboardRoutes);
 app.use('/api/admin/users', protect, isAdmin, adminUserRoutes);
-app.use('/api/admin/bidding-rooms', protect, isAdmin, adminBiddingRoomRoutes); // Admin C-U-D route
-
-
+app.use('/api/admin/bidding-rooms', protect, isAdmin, adminBiddingRoomRoutes);
 
 module.exports = app;
