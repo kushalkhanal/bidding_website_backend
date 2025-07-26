@@ -1,9 +1,12 @@
 
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
-const axios = require('axios'); 
+const axios = require('axios');
 const Payment = require('../models/paymentModel.js');
 const User = require('../models/userModel.js');
+
+let transaction_uuid_from_data = 'N/A'; // For logging
+
 
 // Destructure environment variables for cleaner code
 const {
@@ -30,7 +33,7 @@ exports.initiateEsewaPayment = async (req, res) => {
         }
 
         const transaction_uuid = uuidv4();
-        
+
         // Step 1: Create a pending payment record in your database.
         const newPayment = new Payment({
             userId,
@@ -58,23 +61,55 @@ exports.initiateEsewaPayment = async (req, res) => {
             product_delivery_charge: "0",
             signed_field_names: "total_amount,transaction_uuid,product_code",
             signature,
-        
+
             success_url: `${FRONTEND_URL}/payment/success`,
             failure_url: `${FRONTEND_URL}/payment/failure`,
         };
-        
+
         // Step 4: Send the form data and the eSewa submission URL to the frontend.
         res.status(200).json({
             success: true,
             data: formData,
             esewaUrl: ESEWA_API_URL
         });
-    
+
     } catch (error) {
         console.error("eSewa initiation error:", error);
         return res.status(500).json({ success: false, message: 'Server Error during payment initiation.' });
     }
 };
+
+
+
+const processSuccessfulPayment = async (transaction_uuid) => {
+    console.log(`[PROCESSOR] Attempting to process transaction: ${transaction_uuid}`);
+
+    // --- THE ATOMIC OPERATION ---
+    // Find a payment that is STILL 'pending' and atomically update its status to 'success'.
+    // If it succeeds, 'updatedPayment' will be the document BEFORE the update.
+    // If it fails (because it was already updated), 'updatedPayment' will be null.
+    const updatedPayment = await Payment.findOneAndUpdate(
+        { transaction_uuid: transaction_uuid, status: 'pending' },
+        { $set: { status: 'success' } },
+        { new: false } // Important: returns the document as it was before the update
+    );
+
+    // If 'updatedPayment' is null, another process already handled this. We do nothing.
+    if (!updatedPayment) {
+        console.log(`[PROCESSOR] Transaction ${transaction_uuid} was already processed. No action taken.`);
+        return { alreadyProcessed: true };
+    }
+
+    // If we get here, this is the FIRST and ONLY time this block will run for this transaction.
+    console.log(`[PROCESSOR] Successfully marked transaction ${transaction_uuid} as 'success'.`);
+
+    // Update the user's wallet. This is now guaranteed to run only once.
+    await User.findByIdAndUpdate(updatedPayment.userId, { $inc: { wallet: updatedPayment.amount } });
+    console.log(`[PROCESSOR] Successfully credited ${updatedPayment.amount} to user ${updatedPayment.userId}'s wallet.`);
+
+    return { alreadyProcessed: false };
+};
+
 
 
 /**
@@ -83,69 +118,37 @@ exports.initiateEsewaPayment = async (req, res) => {
  * @access  Public (Called by eSewa's server)
  */
 exports.verifyEsewaPayment = async (req, res) => {
-    // Define the redirect URLs for the user's browser at the very end.
     const successRedirectUrl = `${FRONTEND_URL}/payment/success`;
     const failureRedirectUrl = `${FRONTEND_URL}/payment/failure`;
 
     try {
         const { data } = req.query;
-        if (!data) {
-            console.error("Verification failed: No data received from eSewa.");
-            return res.redirect(failureRedirectUrl + '?error=nodata');
-        }
+        if (!data) return res.redirect(failureRedirectUrl + '?error=nodata');
 
-        // Step 1: Decode the base64 data from eSewa.
         const decodedData = JSON.parse(Buffer.from(data, 'base64').toString('utf-8'));
-        
-        // Early exit if the transaction status on the decoded data is not 'COMPLETE'.
         if (decodedData.status !== "COMPLETE") {
-            console.log(`Transaction ${decodedData.transaction_uuid} was not complete. Status: ${decodedData.status}`);
             return res.redirect(failureRedirectUrl + `?error=status_${decodedData.status}`);
         }
 
-        // Step 2: **CRUCIAL SECURITY STEP**
-        // Verify the transaction by making a server-to-server call to eSewa's verification API.
+        // Final verification call to eSewa's server...
         const verificationUrl = `${ESEWA_VERIFY_URL}?product_code=${ESEWA_MERCHANT_CODE}&total_amount=${decodedData.total_amount}&transaction_uuid=${decodedData.transaction_uuid}`;
-        
         const response = await axios.get(verificationUrl);
-        const verificationResponse = response.data;
-        
-        // Final check on the response from eSewa's server.
-        if (verificationResponse.status !== 'COMPLETE') {
-            console.error(`Verification failed for ${decodedData.transaction_uuid}. eSewa server status: ${verificationResponse.status}`);
+
+        if (response.data.status === 'COMPLETE') {
+            // Call the shared atomic processor function
+            await processSuccessfulPayment(decodedData.transaction_uuid);
+        } else {
             return res.redirect(failureRedirectUrl + '?error=verification_failed');
         }
-        
-        // Step 3: Find the corresponding payment record in your database.
-        const payment = await Payment.findOne({ transaction_uuid: decodedData.transaction_uuid });
 
-        // Step 4: **Idempotency Check**
-        // If payment not found, or if it's already marked as 'success', do nothing further.
-        if (!payment) {
-             console.error(`CRITICAL: Payment record not found for verified transaction_uuid: ${decodedData.transaction_uuid}`);
-             return res.redirect(failureRedirectUrl + '?error=notfound');
-        }
-        if (payment.status === 'success') {
-            console.log(`Transaction ${decodedData.transaction_uuid} already processed.`);
-            return res.redirect(successRedirectUrl + `?refId=${payment.transaction_uuid}`);
-        }
-
-        // Step 5: Update your database.
-        payment.status = 'success';
-        await payment.save();
-
-        // Add the amount to the user's wallet atomically.
-        await User.findByIdAndUpdate(payment.userId, { $inc: { wallet: payment.amount } });
-        console.log(`Successfully credited ${payment.amount} to user ${payment.userId}`);
-        
-        // Step 6: Redirect the user's browser to the final success page.
-        res.redirect(successRedirectUrl + `?refId=${payment.transaction_uuid}`);
+        res.redirect(successRedirectUrl + `?data=${data}`); // Pass data back to frontend
 
     } catch (error) {
-        console.error("Fatal error in eSewa verification:", error.response ? error.response.data : error.message);
+        console.error("Fatal error in secure eSewa verification:", error.message);
         res.redirect(failureRedirectUrl + '?error=server_error');
     }
 };
+
 
 /**
  * @desc    Get user's successful transaction history
@@ -157,12 +160,33 @@ exports.getTransactionHistory = async (req, res) => {
         const userId = req.user._id;
         // Find only successful payments for the user's history
         const payments = await Payment.find({ userId, status: 'success' })
-                                      .sort({ createdAt: -1 }); // Show newest first
-        
+            .sort({ createdAt: -1 }); // Show newest first
+
         return res.status(200).json({ success: true, data: payments });
 
     } catch (error) {
         console.error("Get transaction history error:", error);
         return res.status(500).json({ success: false, message: "Server Error" });
+    }
+};
+
+
+
+
+exports.confirmFrontendPayment = async (req, res) => {
+    try {
+        const { transaction_uuid } = req.body;
+        if (!transaction_uuid) {
+            return res.status(400).json({ success: false, message: "Transaction UUID is required." });
+        }
+
+        // Call the shared atomic processor function
+        await processSuccessfulPayment(transaction_uuid);
+
+        res.status(200).json({ success: true, message: "Wallet update processed." });
+
+    } catch (error) {
+        console.error("[DEV-CONFIRM] Error confirming payment:", error);
+        res.status(500).json({ success: false, message: "Server error during confirmation." });
     }
 };

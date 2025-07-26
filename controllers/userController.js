@@ -220,3 +220,29 @@ exports.resetPassword = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error while resetting password.' });
     }
 };
+
+
+
+
+
+exports.getMe = async (req, res) => {
+    try {
+        // The 'protect' middleware has already found the user and attached it to req.user.
+        // We just need to find the latest version of that user from the database.
+        // We exclude the password for security.
+        const user = await User.findById(req.user.id).select('-password');
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        res.status(200).json({
+            success: true,
+            user: user
+        });
+
+    } catch (error) {
+        console.error("Error in getMe controller:", error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
